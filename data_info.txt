@@ -1,0 +1,13 @@
+文件名：cast.csv
+数据来源：kaggle网站
+字段含义：temperature（温度）、salinity（盐度）、depth（深度）、area（区域）
+文件名：bottle.csv
+数据来源：kaggle网站
+字段含义：temperature（温度）、salinity（盐度）、depth（深度）、area（区域）
+文件名：cleaned_bottle.csv
+来源：kaggle网站
+字段含义：
+- depth: 深度（米）
+- temperature: 温度（℃）
+- salinity: 盐度（PSU）
+- area: 区域（太平洋/印度洋等）
