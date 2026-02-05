@@ -2,10 +2,11 @@
   <div class="page">
     <PageHeader title="可视化展示" desc="按区域/时间/深度筛选，并运行算法获取可视化 JSON 输出" />
 
+    <!-- ✅ 仅做UI排版优化：更紧凑、更对齐的“工具栏”式筛选区；逻辑不变 -->
     <div class="card" style="margin-bottom:12px;">
-      <div class="flex-row">
-        <div class="flex-row">
-          <span style="opacity:.75">区域</span>
+      <div class="flex-row" style="gap:14px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="flex-row" style="gap:10px;">
+          <span class="muted">区域</span>
           <el-select v-model="filters.area" placeholder="全部" style="width:180px">
             <el-option label="全部" value="" />
             <el-option label="太平洋 (PACIFIC)" value="PACIFIC" />
@@ -13,29 +14,32 @@
           </el-select>
         </div>
 
-        <div class="flex-row">
-          <span style="opacity:.75">深度范围(m)</span>
+        <div class="flex-row" style="gap:10px;">
+          <span class="muted">深度范围(m)</span>
           <el-input-number v-model="filters.depthMin" :min="0" :max="12000" controls-position="right" />
-          <span style="opacity:.6">-</span>
+          <span class="muted">-</span>
           <el-input-number v-model="filters.depthMax" :min="0" :max="12000" controls-position="right" />
         </div>
 
-        <div class="flex-row">
-          <span style="opacity:.75">时间范围</span>
+        <div class="flex-row" style="gap:10px; flex:1; min-width:360px;">
+          <span class="muted">时间范围</span>
           <el-date-picker
             v-model="filters.timeRange"
             type="datetimerange"
             start-placeholder="开始时间"
             end-placeholder="结束时间"
             value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
+            style="flex:1;"
           />
         </div>
 
-        <el-button type="primary" :loading="queryLoading" @click="runQuery">查询数据</el-button>
-        <el-button type="success" :loading="analysisLoading" @click="runAnalysis">运行分析/获取结果</el-button>
+        <div class="flex-row" style="gap:10px;">
+          <el-button type="primary" :loading="queryLoading" @click="runQuery">查询数据</el-button>
+          <el-button type="success" :loading="analysisLoading" @click="runAnalysis">运行分析/获取结果</el-button>
+        </div>
       </div>
 
-      <div style="margin-top:10px; opacity:.75; font-size:12px;">
+      <div class="muted" style="margin-top:10px; font-size:12px;">
         交互：点击柱状图某个区域将自动作为筛选条件联动刷新折线图。
       </div>
     </div>
@@ -232,3 +236,10 @@ async function onPageChange(p: number) {
 runQuery();
 runAnalysis();
 </script>
+
+<!-- ✅ 只加一个小的 muted 工具类；不会影响逻辑 -->
+<style scoped>
+.muted {
+  opacity: 0.75;
+}
+</style>
