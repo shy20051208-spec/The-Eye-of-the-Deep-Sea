@@ -2,48 +2,51 @@
   <div class="page">
     <PageHeader title="可视化展示" desc="按区域/时间/深度筛选，并运行算法获取可视化 JSON 输出" />
 
-    <!-- 筛选工具栏（仅UI排版优化，逻辑不变） -->
-    <div class="card toolbar-card">
-      <div class="toolbar">
-        <div class="toolbar__left">
-          <div class="field">
-            <div class="field__label">区域</div>
-            <el-select v-model="filters.area" placeholder="全部" class="w-180">
-              <el-option label="全部" value="" />
-              <el-option label="太平洋 (PACIFIC)" value="PACIFIC" />
-              <el-option label="印度洋 (INDIAN)" value="INDIAN" />
-            </el-select>
-          </div>
-
-          <div class="field">
-            <div class="field__label">深度范围(m)</div>
-            <div class="range">
-              <el-input-number v-model="filters.depthMin" :min="0" :max="12000" controls-position="right" />
-              <span class="range__sep">-</span>
-              <el-input-number v-model="filters.depthMax" :min="0" :max="12000" controls-position="right" />
-            </div>
-          </div>
-
-          <div class="field field--grow">
-            <div class="field__label">时间范围</div>
-            <el-date-picker
-              v-model="filters.timeRange"
-              type="datetimerange"
-              start-placeholder="开始时间"
-              end-placeholder="结束时间"
-              value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
-              class="time-picker"
-            />
-          </div>
+    <!-- ✅ UI排版：工具栏式筛选区；逻辑不变 -->
+    <div class="card" style="margin-bottom:12px;">
+      <div class="flex-row" style="gap:14px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="flex-row" style="gap:10px;">
+          <span class="muted">区域</span>
+          <el-select v-model="filters.area" placeholder="全部" style="width:180px">
+            <el-option label="全部" value="" />
+            <el-option label="太平洋 (PACIFIC)" value="PACIFIC" />
+            <el-option label="印度洋 (INDIAN)" value="INDIAN" />
+          </el-select>
         </div>
 
-        <div class="toolbar__right">
+        <div class="flex-row" style="gap:10px;">
+          <span class="muted">深度范围(m)</span>
+          <el-input-number v-model="filters.depthMin" :min="0" :max="12000" controls-position="right" />
+          <span class="muted">-</span>
+          <el-input-number v-model="filters.depthMax" :min="0" :max="12000" controls-position="right" />
+        </div>
+
+        <!-- ✅ B方案：两个独立 datetime，不改 buildParams 的 timeStart/timeEnd 出参结构 -->
+        <div class="flex-row" style="gap:10px; flex:1; min-width:520px; flex-wrap:wrap;">
+          <span class="muted">开始</span>
+          <el-date-picker
+            v-model="timeStart"
+            type="datetime"
+            placeholder="开始时间"
+            value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
+            style="width: 210px;"
+          />
+
+          <span class="muted">结束</span>
+          <el-date-picker
+            v-model="timeEnd"
+            type="datetime"
+            placeholder="结束时间"
+            value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
+            style="width: 210px;"
+          />
+
           <el-button type="primary" :loading="queryLoading" @click="runQuery">查询数据</el-button>
           <el-button type="success" :loading="analysisLoading" @click="runAnalysis">运行分析/获取结果</el-button>
         </div>
       </div>
 
-      <div class="toolbar__hint">
+      <div class="muted" style="margin-top:10px; font-size:12px;">
         交互：点击柱状图某个区域将自动作为筛选条件联动刷新折线图。
       </div>
     </div>
@@ -81,7 +84,7 @@
       </ChartContainer>
     </div>
 
-    <div class="mt-12">
+    <div style="margin-top:12px;">
       <ChartContainer
         title="图3：太平洋 vs 印度洋对比（可插拔模块）"
         :loading="analysisLoading"
@@ -98,16 +101,15 @@
         </template>
 
         <template v-else>
-          <div class="center-state">
+          <div style="height:100%;display:flex;align-items:center;justify-content:center;">
             <el-empty description="已关闭对比模块（可开关）" />
           </div>
         </template>
       </ChartContainer>
     </div>
 
-    <div class="card table-card">
-      <div class="table-card__title">查询结果预览（用于联调校验）</div>
-
+    <div class="card" style="margin-top:12px;">
+      <div style="font-weight:700;margin-bottom:8px;">查询结果预览（用于联调校验）</div>
       <el-table :data="table.list" size="small" height="320" v-loading="queryLoading">
         <el-table-column prop="area" label="area" width="120" />
         <el-table-column prop="depth" label="depth(m)" width="110" />
@@ -115,8 +117,7 @@
         <el-table-column prop="salinity" label="salinity(PSU)" width="150" />
         <el-table-column prop="time" label="time" min-width="220" />
       </el-table>
-
-      <div class="table-card__pager">
+      <div style="margin-top:10px; display:flex; justify-content:flex-end;">
         <el-pagination
           background
           layout="prev, pager, next, total"
@@ -177,6 +178,50 @@ const analysis = ref<AnalysisResult>({
 const areaAgg = computed(() => analysis.value.areaAgg || []);
 const depthSeries = computed(() => analysis.value.depthSeries || []);
 const compare = computed(() => analysis.value.compare);
+
+/**
+ * ✅ B方案关键：用两个独立 v-model 映射回 filters.timeRange
+ * - 不改变 buildParams 最终输出结构（timeStart/timeEnd 仍来自 timeRange）
+ * - 用户改“开始”不会把“结束”也改掉；反之亦然
+ */
+const timeStart = computed<string | null>({
+  get() {
+    return filters.timeRange?.[0] ?? null;
+  },
+  set(v) {
+    const end = filters.timeRange?.[1] ?? null;
+    if (!v && !end) {
+      filters.timeRange = null;
+      return;
+    }
+    if (v && end) {
+      filters.timeRange = [v, end];
+      return;
+    }
+    // 只有一个值时，先形成一个“可用区间”，避免 buildParams 拿到 undefined
+    if (v && !end) filters.timeRange = [v, v];
+    if (!v && end) filters.timeRange = [end, end];
+  }
+});
+
+const timeEnd = computed<string | null>({
+  get() {
+    return filters.timeRange?.[1] ?? null;
+  },
+  set(v) {
+    const start = filters.timeRange?.[0] ?? null;
+    if (!start && !v) {
+      filters.timeRange = null;
+      return;
+    }
+    if (start && v) {
+      filters.timeRange = [start, v];
+      return;
+    }
+    if (start && !v) filters.timeRange = [start, start];
+    if (!start && v) filters.timeRange = [v, v];
+  }
+});
 
 function buildParams(extra?: Partial<QueryParams>): QueryParams {
   const [timeStart, timeEnd] = filters.timeRange || [undefined as any, undefined as any];
@@ -244,106 +289,7 @@ runAnalysis();
 </script>
 
 <style scoped>
-/* 小工具类 */
-.mt-12 {
-  margin-top: 12px;
-}
-.w-180 {
-  width: 180px;
-}
-
-/* 工具栏卡片 */
-.toolbar-card {
-  margin-bottom: 12px;
-  padding: 14px 14px 12px 14px;
-}
-
-.toolbar {
-  display: flex;
-  gap: 14px;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.toolbar__left {
-  display: flex;
-  gap: 14px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 520px;
-}
-
-.toolbar__right {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex: 0 0 auto;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field--grow {
-  flex: 1;
-  min-width: 360px;
-}
-
-.field__label {
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.66);
-  line-height: 1;
-  padding-left: 2px;
-}
-
-.range {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.range__sep {
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.45);
-}
-
-.time-picker {
-  width: 100%;
-}
-
-.toolbar__hint {
-  margin-top: 10px;
-  font-size: 12px;
-  color: rgba(15, 23, 42, 0.58);
-}
-
-/* 空态居中 */
-.center-state {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 表格卡片 */
-.table-card {
-  margin-top: 12px;
-  padding: 14px 14px 12px 14px;
-}
-
-.table-card__title {
-  font-weight: 800;
-  color: rgba(15, 23, 42, 0.9);
-  margin-bottom: 10px;
-}
-
-.table-card__pager {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
+.muted {
+  opacity: 0.75;
 }
 </style>
