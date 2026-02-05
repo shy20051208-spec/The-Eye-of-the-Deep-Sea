@@ -2,44 +2,48 @@
   <div class="page">
     <PageHeader title="可视化展示" desc="按区域/时间/深度筛选，并运行算法获取可视化 JSON 输出" />
 
-    <!-- ✅ 仅做UI排版优化：更紧凑、更对齐的“工具栏”式筛选区；逻辑不变 -->
-    <div class="card" style="margin-bottom:12px;">
-      <div class="flex-row" style="gap:14px; align-items:flex-end; flex-wrap:wrap;">
-        <div class="flex-row" style="gap:10px;">
-          <span class="muted">区域</span>
-          <el-select v-model="filters.area" placeholder="全部" style="width:180px">
-            <el-option label="全部" value="" />
-            <el-option label="太平洋 (PACIFIC)" value="PACIFIC" />
-            <el-option label="印度洋 (INDIAN)" value="INDIAN" />
-          </el-select>
+    <!-- 筛选工具栏（仅UI排版优化，逻辑不变） -->
+    <div class="card toolbar-card">
+      <div class="toolbar">
+        <div class="toolbar__left">
+          <div class="field">
+            <div class="field__label">区域</div>
+            <el-select v-model="filters.area" placeholder="全部" class="w-180">
+              <el-option label="全部" value="" />
+              <el-option label="太平洋 (PACIFIC)" value="PACIFIC" />
+              <el-option label="印度洋 (INDIAN)" value="INDIAN" />
+            </el-select>
+          </div>
+
+          <div class="field">
+            <div class="field__label">深度范围(m)</div>
+            <div class="range">
+              <el-input-number v-model="filters.depthMin" :min="0" :max="12000" controls-position="right" />
+              <span class="range__sep">-</span>
+              <el-input-number v-model="filters.depthMax" :min="0" :max="12000" controls-position="right" />
+            </div>
+          </div>
+
+          <div class="field field--grow">
+            <div class="field__label">时间范围</div>
+            <el-date-picker
+              v-model="filters.timeRange"
+              type="datetimerange"
+              start-placeholder="开始时间"
+              end-placeholder="结束时间"
+              value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
+              class="time-picker"
+            />
+          </div>
         </div>
 
-        <div class="flex-row" style="gap:10px;">
-          <span class="muted">深度范围(m)</span>
-          <el-input-number v-model="filters.depthMin" :min="0" :max="12000" controls-position="right" />
-          <span class="muted">-</span>
-          <el-input-number v-model="filters.depthMax" :min="0" :max="12000" controls-position="right" />
-        </div>
-
-        <div class="flex-row" style="gap:10px; flex:1; min-width:360px;">
-          <span class="muted">时间范围</span>
-          <el-date-picker
-            v-model="filters.timeRange"
-            type="datetimerange"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
-            style="flex:1;"
-          />
-        </div>
-
-        <div class="flex-row" style="gap:10px;">
+        <div class="toolbar__right">
           <el-button type="primary" :loading="queryLoading" @click="runQuery">查询数据</el-button>
           <el-button type="success" :loading="analysisLoading" @click="runAnalysis">运行分析/获取结果</el-button>
         </div>
       </div>
 
-      <div class="muted" style="margin-top:10px; font-size:12px;">
+      <div class="toolbar__hint">
         交互：点击柱状图某个区域将自动作为筛选条件联动刷新折线图。
       </div>
     </div>
@@ -77,7 +81,7 @@
       </ChartContainer>
     </div>
 
-    <div style="margin-top:12px;">
+    <div class="mt-12">
       <ChartContainer
         title="图3：太平洋 vs 印度洋对比（可插拔模块）"
         :loading="analysisLoading"
@@ -94,15 +98,16 @@
         </template>
 
         <template v-else>
-          <div style="height:100%;display:flex;align-items:center;justify-content:center;">
+          <div class="center-state">
             <el-empty description="已关闭对比模块（可开关）" />
           </div>
         </template>
       </ChartContainer>
     </div>
 
-    <div class="card" style="margin-top:12px;">
-      <div style="font-weight:700;margin-bottom:8px;">查询结果预览（用于联调校验）</div>
+    <div class="card table-card">
+      <div class="table-card__title">查询结果预览（用于联调校验）</div>
+
       <el-table :data="table.list" size="small" height="320" v-loading="queryLoading">
         <el-table-column prop="area" label="area" width="120" />
         <el-table-column prop="depth" label="depth(m)" width="110" />
@@ -110,7 +115,8 @@
         <el-table-column prop="salinity" label="salinity(PSU)" width="150" />
         <el-table-column prop="time" label="time" min-width="220" />
       </el-table>
-      <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+
+      <div class="table-card__pager">
         <el-pagination
           background
           layout="prev, pager, next, total"
@@ -237,9 +243,107 @@ runQuery();
 runAnalysis();
 </script>
 
-<!-- ✅ 只加一个小的 muted 工具类；不会影响逻辑 -->
 <style scoped>
-.muted {
-  opacity: 0.75;
+/* 小工具类 */
+.mt-12 {
+  margin-top: 12px;
+}
+.w-180 {
+  width: 180px;
+}
+
+/* 工具栏卡片 */
+.toolbar-card {
+  margin-bottom: 12px;
+  padding: 14px 14px 12px 14px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.toolbar__left {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 520px;
+}
+
+.toolbar__right {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field--grow {
+  flex: 1;
+  min-width: 360px;
+}
+
+.field__label {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.66);
+  line-height: 1;
+  padding-left: 2px;
+}
+
+.range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range__sep {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.time-picker {
+  width: 100%;
+}
+
+.toolbar__hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.58);
+}
+
+/* 空态居中 */
+.center-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 表格卡片 */
+.table-card {
+  margin-top: 12px;
+  padding: 14px 14px 12px 14px;
+}
+
+.table-card__title {
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.9);
+  margin-bottom: 10px;
+}
+
+.table-card__pager {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
