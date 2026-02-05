@@ -40,13 +40,14 @@
         <div class="field field--span2">
           <div class="field__label">时间范围</div>
           <el-date-picker
-            v-model="filters.timeRange"
-            type="datetimerange"
-            start-placeholder="开始时间"
-            end-placeholder="结束时间"
-            value-format="YYYY-MM-DDTHH:mm:ss.SSSZ"
-            class="field__control"
-          />
+  v-model="filters.timeRange"
+  type="datetimerange"
+  start-placeholder="开始时间"
+  end-placeholder="结束时间"
+  :editable="false"
+  unlink-panels
+/>
+
         </div>
       </div>
 
@@ -90,26 +91,36 @@
 
     <div style="margin-top:12px;">
       <ChartContainer
-        title="图3：太平洋 vs 印度洋对比（可插拔模块）"
-        :loading="analysisLoading"
-        :empty="!compare"
-        :error="analysisError"
-        @retry="runAnalysis"
-      >
-        <template #extra>
-          <el-switch v-model="showCompare" active-text="显示对比模块" />
-        </template>
+  title="图3：太平洋 vs 印度洋对比（可插拔模块）"
+  :loading="analysisLoading"
+  :empty="showCompare ? !compare : false"
+  :error="analysisError"
+  @retry="runAnalysis"
+>
+  <template #extra>
+    <el-switch v-model="showCompare" active-text="显示对比模块" />
+  </template>
 
-        <template v-if="showCompare && compare">
-          <CompareMap :pacific="compare.pacific" :indian="compare.indian" />
-        </template>
+  <!-- 关掉时：永远显示“已关闭”，不走 empty -->
+  <template v-if="!showCompare">
+    <div style="height:100%;display:flex;align-items:center;justify-content:center;">
+      <el-empty description="已关闭对比模块（可开关）" />
+    </div>
+  </template>
 
-        <template v-else>
-          <div style="height:100%;display:flex;align-items:center;justify-content:center;">
-            <el-empty description="已关闭对比模块（可开关）" />
-          </div>
-        </template>
-      </ChartContainer>
+  <!-- 打开时：如果有 compare 就展示 -->
+  <template v-else-if="compare">
+    <CompareMap :pacific="compare.pacific" :indian="compare.indian" />
+  </template>
+
+  <!-- 打开但没数据：提示“暂无对比数据” -->
+  <template v-else>
+    <div style="height:100%;display:flex;align-items:center;justify-content:center;">
+      <el-empty description="暂无对比数据（后端/算法未返回 compare 字段）" />
+    </div>
+  </template>
+</ChartContainer>
+
     </div>
 
     <!-- ✅ UI：表格卡片更像“模块” -->
@@ -157,7 +168,8 @@ const filters = reactive<{
   area: string;
   depthMin: number | null;
   depthMax: number | null;
-  timeRange: [string, string] | null;
+  timeRange: [Date, Date] | null;
+
 }>({
   area: "",
   depthMin: 0,
@@ -189,14 +201,20 @@ const areaAgg = computed(() => analysis.value.areaAgg || []);
 const depthSeries = computed(() => analysis.value.depthSeries || []);
 const compare = computed(() => analysis.value.compare);
 
+function toIso(d?: Date) {
+  return d ? d.toISOString() : (undefined as any);
+}
+
 function buildParams(extra?: Partial<QueryParams>): QueryParams {
-  const [timeStart, timeEnd] = filters.timeRange || [undefined as any, undefined as any];
+  const [start, end] = filters.timeRange || [undefined as any, undefined as any];
+
   return {
     area: filters.area || "",
     depthMin: filters.depthMin,
     depthMax: filters.depthMax,
-    timeStart,
-    timeEnd,
+    timeStart: toIso(start),
+timeEnd: toIso(end),
+
     page: table.page,
     pageSize: table.pageSize,
     ...extra
@@ -223,6 +241,8 @@ async function runAnalysis() {
   try {
     const res = await apiAnalyze(buildParams({ page: 1, pageSize: 999999 }));
     analysis.value = res;
+    
+
 
     if (!res.areaAgg?.length && !res.depthSeries?.length) {
       ElMessage.warning("分析结果为空（请调整筛选条件或检查后端/算法输出）");
