@@ -1,0 +1,49 @@
+:root{
+  --bg: #f6f7fb;
+  --card: rgba(255,255,255,.92);
+  --text: #111827;
+  --muted: rgba(17,24,39,.65);
+  --border: rgba(17,24,39,.08);
+  --shadow: 0 10px 30px rgba(16,24,40,.08);
+  --radius: 14px;
+}
+
+/* 更舒服的默认字体渲染 */
+html, body {
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 页面容器更居中一些 */
+.page{
+  padding: 18px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* 卡片更像“产品” */
+.card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+/* 小标题/辅助文字 */
+.muted{ color: var(--muted); }
+
+/* 更柔和的分割线 */
+.hr{
+  height: 1px;
+  background: var(--border);
+  margin: 12px 0;
+}
+
+/* 让 ElementPlus 表格/分页在卡片内更协调 */
+.el-table{
+  border-radius: 10px;
+  overflow: hidden;
+}
