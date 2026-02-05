@@ -1,8 +1,10 @@
 <template>
   <div class="chart-card">
+    <!-- Header -->
     <div class="chart-card__header">
       <div class="chart-card__title">
-        <span class="chart-card__title-text">{{ title }}</span>
+        <div class="chart-card__dot" />
+        <span class="chart-card__titleText">{{ title }}</span>
       </div>
 
       <div class="chart-card__extra">
@@ -10,8 +12,9 @@
       </div>
     </div>
 
-    <div class="chart-card__divider"></div>
+    <div class="chart-card__divider" />
 
+    <!-- Body -->
     <div class="chart-card__body">
       <div v-if="loading" class="chart-card__state">
         <el-skeleton :rows="6" animated style="width: 100%" />
@@ -20,7 +23,7 @@
       <div v-else-if="error" class="chart-card__state">
         <el-result icon="error" title="加载失败" :sub-title="error">
           <template #extra>
-            <el-button @click="$emit('retry')">重试</el-button>
+            <el-button type="primary" @click="$emit('retry')">重试</el-button>
           </template>
         </el-result>
       </div>
@@ -48,12 +51,17 @@ defineEmits<{ (e: "retry"): void }>();
 
 <style scoped>
 .chart-card {
-  position: relative;
-  border-radius: 14px;
+  border-radius: 16px;
   background: #fff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 30px rgba(2, 10, 35, 0.06);
   border: 1px solid rgba(15, 23, 42, 0.06);
   overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.chart-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 36px rgba(2, 10, 35, 0.08);
 }
 
 .chart-card__header {
@@ -67,13 +75,22 @@ defineEmits<{ (e: "retry"): void }>();
 .chart-card__title {
   display: flex;
   align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-.chart-card__title-text {
+.chart-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 1), rgba(34, 211, 238, 1));
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.22);
+  flex: 0 0 auto;
+}
+
+.chart-card__titleText {
   font-weight: 800;
   font-size: 16px;
-  line-height: 1.2;
   color: rgba(15, 23, 42, 0.92);
   white-space: nowrap;
   overflow: hidden;
@@ -83,7 +100,8 @@ defineEmits<{ (e: "retry"): void }>();
 .chart-card__extra {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 10px;
   flex: 0 0 auto;
 }
 
