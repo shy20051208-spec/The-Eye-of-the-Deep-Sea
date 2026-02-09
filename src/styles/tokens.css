@@ -1,0 +1,65 @@
+:root {
+  /* ========= Brand / Primary ========= */
+  --ae-brand-900: #06162b;
+  --ae-brand-800: #0a1f3d;
+  --ae-brand-700: #0b2a54;
+  --ae-brand-600: #0e3a73;
+  --ae-brand-500: #1456a6;
+
+  --ae-primary: #1e66ff;
+  --ae-primary-2: #22d3ee;
+  --ae-gradient: linear-gradient(135deg, rgba(30, 102, 255, 1), rgba(34, 211, 238, 1));
+
+  /* ========= Background / Surface ========= */
+  --ae-bg: #f6f7fb;
+  --ae-bg-2: #eef2f8;
+  --ae-surface: rgba(255, 255, 255, 0.78);
+  --ae-surface-solid: #ffffff;
+  --ae-card: rgba(255, 255, 255, 0.82);
+  --ae-border: rgba(15, 23, 42, 0.08);
+
+  /* ========= Text ========= */
+  --ae-text-1: rgba(15, 23, 42, 0.92);
+  --ae-text-2: rgba(15, 23, 42, 0.68);
+  --ae-text-3: rgba(15, 23, 42, 0.52);
+  --ae-invert-1: rgba(255, 255, 255, 0.92);
+  --ae-invert-2: rgba(255, 255, 255, 0.66);
+
+  /* ========= Radius ========= */
+  --ae-r-8: 8px;
+  --ae-r-12: 12px;
+  --ae-r-16: 16px;
+  --ae-r-20: 20px;
+
+  /* ========= Spacing (8px grid) ========= */
+  --ae-s-8: 8px;
+  --ae-s-12: 12px;
+  --ae-s-16: 16px;
+  --ae-s-24: 24px;
+  --ae-s-32: 32px;
+
+  /* ========= Shadow ========= */
+  --ae-shadow-card: 0 12px 30px rgba(2, 10, 35, 0.08);
+  --ae-shadow-float: 0 18px 40px rgba(2, 10, 35, 0.12);
+  --ae-shadow-hover: 0 16px 36px rgba(2, 10, 35, 0.12);
+
+  /* ========= Status ========= */
+  --ae-success: #16a34a;
+  --ae-warn: #f59e0b;
+  --ae-danger: #ef4444;
+
+  /* ========= Typography ========= */
+  --ae-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC",
+    "Microsoft YaHei", "Hiragino Sans GB", "WenQuanYi Micro Hei", sans-serif;
+
+  --ae-h1: 28px;
+  --ae-h2: 20px;
+  --ae-h3: 16px;
+  --ae-body: 14px;
+  --ae-cap: 12px;
+
+  --ae-w-900: 900;
+  --ae-w-800: 800;
+  --ae-w-700: 700;
+  --ae-w-600: 600;
+}

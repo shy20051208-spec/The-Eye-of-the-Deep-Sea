@@ -66,8 +66,8 @@
       >
         <template #extra>
           <el-radio-group v-model="metric" size="small">
-            <el-radio-button label="temperature">温度</el-radio-button>
-            <el-radio-button label="salinity">盐度</el-radio-button>
+            <el-radio-button label="温度" value="temperature" />
+            <el-radio-button label="盐度" value="salinity" />
           </el-radio-group>
         </template>
 

@@ -1,4 +1,8 @@
-html, body, #app {
+/* global utility styles (keep small & safe) */
+
+html,
+body,
+#app {
   height: 100%;
   margin: 0;
 }
@@ -7,16 +11,12 @@ html, body, #app {
   box-sizing: border-box;
 }
 
+/* Keep page/card base in portal.css, here only keep spacing utilities */
 .page {
-  padding: 16px;
+  padding: var(--ae-s-16);
 }
 
-.card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-}
-
+/* Utility layouts */
 .flex-row {
   display: flex;
   gap: 12px;
@@ -39,4 +39,9 @@ html, body, #app {
   .grid-2 {
     grid-template-columns: 1fr;
   }
+}
+
+/* Tiny text helpers */
+.muted {
+  opacity: 0.75;
 }
