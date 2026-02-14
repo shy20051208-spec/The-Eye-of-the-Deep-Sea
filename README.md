@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 深渊之眼（abyss-eye）· CTD 门户（Next.js）
 
-## Getting Started
+面向“深渊探测温盐深（CTD/TSG）数据”的管理、分析与可视化门户（PC 优先）。  
+当前版本以 **Mock 数据** 为主（便于独立演示），后续可对接 Spring Boot + MySQL（8081）与算法结果接口。
 
-First, run the development server:
+---
+
+## 1. 技术栈
+
+- **Next.js (App Router) + TypeScript**
+- **Tailwind CSS v4**（设计系统/主题样式）
+- **shadcn/ui + Radix UI**（高质量组件）
+- **lucide-react**（图标）
+- **next-themes**（暗色/亮色切换）
+- **ESLint**（代码规范）
+
+---
+
+## 2. 快速开始（安装 / 运行）
+
+### 2.1 环境要求
+- Node.js 建议 **18+ / 20+**
+- npm / pnpm 均可（本项目同时存在 `package-lock.json` 与 `pnpm-lock.yaml`，建议团队统一一种包管理器）
+
+### 2.2 安装依赖
+任选其一：
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+npm install
+# 或
+pnpm install
