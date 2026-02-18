@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Station {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  latitude     Float
+  longitude    Float
+  seaArea      String
+  type         String           @default("Cruise")
+  measurements CTDMeasurement[]
+  createdAt    DateTime         @default(now())
+}
+
+model CTDMeasurement {
+  id          String   @id @default(cuid())
+  stationId   String
+  station     Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  date        DateTime
+  depth       Float
+  temperature Float
+  salinity    Float
+  density     Float
+  status      String   @default("Pending")
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  initials     String
+  role         String
+  department   String
+  status       String     @default("Active")
+  lastActiveAt DateTime   @default(now())
+  auditLogs    AuditLog[]
+  createdAt    DateTime   @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+}
