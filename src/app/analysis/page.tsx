@@ -172,14 +172,14 @@ export default function AnalysisPage() {
                 </h3>
               </div>
               <div className="p-4">
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width="100%" height={370}>
                   <LineChart
                     data={analysisData.profile}
                     layout="vertical"
-                    margin={{ top: 10, right: 30, bottom: 10, left: 20 }}
+                    margin={{ top: 10, right: 30, bottom: 30, left: 20 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Temperature (℃)", position: "bottom" }} />
+                    <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Temperature (℃)", position: "insideBottom", offset: -10 }} />
                     <YAxis dataKey="depth" type="number" reversed tick={{ fontSize: 11 }} label={{ value: "Depth (m)", angle: -90, position: "insideLeft" }} />
                     <Tooltip />
                     <Line type="monotone" dataKey="temperature" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />

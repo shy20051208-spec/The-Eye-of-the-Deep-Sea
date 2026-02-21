@@ -261,13 +261,13 @@ export default function VisualizationPage() {
             </h3>
           </div>
           <div className="p-4">
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={profile} margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
+            <ResponsiveContainer width="100%" height={420}>
+              <LineChart data={profile} margin={{ top: 10, right: 30, bottom: 50, left: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="depth" tick={{ fontSize: 11 }} label={{ value: "Depth (m)", position: "bottom", offset: 0 }} />
+                <XAxis dataKey="depth" tick={{ fontSize: 11 }} label={{ value: "Depth (m)", position: "insideBottom", offset: -30 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend />
+                <Legend verticalAlign="bottom" wrapperStyle={{ paddingTop: 40 }} />
                 <Line type="monotone" dataKey="temperature" stroke="#0ea5e9" name="Temperature (℃)" dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="salinity" stroke="#8b5cf6" name="Salinity (PSU)" dot={{ r: 3 }} />
               </LineChart>
@@ -285,10 +285,10 @@ export default function VisualizationPage() {
               </h3>
             </div>
             <div className="p-4">
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={profile} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+              <ResponsiveContainer width="100%" height={370}>
+                <LineChart data={profile} layout="vertical" margin={{ top: 10, right: 20, bottom: 30, left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Temperature (℃)", position: "bottom" }} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Temperature (℃)", position: "insideBottom", offset: -10 }} />
                   <YAxis dataKey="depth" type="number" reversed tick={{ fontSize: 11 }} label={{ value: "Depth (m)", angle: -90, position: "insideLeft" }} />
                   <Tooltip />
                   <Line type="monotone" dataKey="temperature" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
@@ -303,10 +303,10 @@ export default function VisualizationPage() {
               </h3>
             </div>
             <div className="p-4">
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart data={profile} layout="vertical" margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
+              <ResponsiveContainer width="100%" height={370}>
+                <LineChart data={profile} layout="vertical" margin={{ top: 10, right: 20, bottom: 30, left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Salinity (PSU)", position: "bottom" }} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} label={{ value: "Salinity (PSU)", position: "insideBottom", offset: -10 }} />
                   <YAxis dataKey="depth" type="number" reversed tick={{ fontSize: 11 }} label={{ value: "Depth (m)", angle: -90, position: "insideLeft" }} />
                   <Tooltip />
                   <Line type="monotone" dataKey="salinity" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
