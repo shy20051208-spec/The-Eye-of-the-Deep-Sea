@@ -1,36 +1,13 @@
 "use client";
 
-import {
-  ArrowDownUp,
-  Bell,
-  CalendarDays,
-  Database,
-  Download,
-  Droplets,
-  Eye,
-  MapPin,
-  Pencil,
-  SlidersHorizontal,
-  Search,
-  Thermometer,
-  Trash2,
-  Upload,
-  UploadCloud,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { TopBar } from "@/components/layout/topbar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { useI18n } from "@/components/i18n-provider";
 import { LocaleToggle } from "@/components/locale-toggle";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
@@ -46,9 +23,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { datasets, stats } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
-import { useI18n } from "@/components/i18n-provider";
+import {
+  Upload,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Trash2,
+  Database,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  X,
+  Check,
+} from "lucide-react";
+
+interface Station {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  seaArea: string;
+  type: string;
+}
+
+interface Measurement {
+  id: string;
+  stationId: string;
+  station: Station;
+  date: string;
+  depth: number;
+  temperature: number;
+  salinity: number;
+  density: number;
+  status: string;
+}
+
+interface Stats {
+  totalRecords: number;
+  verifiedCount: number;
+  pendingCount: number;
+  flaggedCount: number;
+  avgTemperature: number;
+  avgSalinity: number;
+  stationCount: number;
+  verifiedPercentage: number;
+}
 
 const statusStyles: Record<string, string> = {
   Verified:
@@ -59,316 +80,488 @@ const statusStyles: Record<string, string> = {
     "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-400/30 dark:bg-rose-500/10 dark:text-rose-200",
 };
 
-const statIcons = {
-  database: Database,
-  "map-pin": MapPin,
-  thermometer: Thermometer,
-  droplets: Droplets,
-};
-
 export default function DataManagementPage() {
   const { t } = useI18n();
-  const statusLabels: Record<string, string> = {
-    Verified: t("status.verified"),
-    Pending: t("status.pending"),
-    Flagged: t("status.flagged"),
+
+  // Data state
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Filter state
+  const [search, setSearch] = useState("");
+  const [stationFilter, setStationFilter] = useState("");
+  const [seaAreaFilter, setSeaAreaFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const pageSize = 10;
+
+  // UI state
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Partial<Measurement>>({});
+
+  // Fetch measurements
+  const fetchMeasurements = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+      sortBy,
+      sortOrder,
+    });
+    if (search) params.set("search", search);
+    if (stationFilter) params.set("station", stationFilter);
+    if (seaAreaFilter) params.set("seaArea", seaAreaFilter);
+    if (statusFilter) params.set("status", statusFilter);
+
+    const res = await fetch(`/api/measurements?${params}`);
+    const data = await res.json();
+    setMeasurements(data.data);
+    setTotal(data.total);
+    setLoading(false);
+  }, [page, search, stationFilter, seaAreaFilter, statusFilter, sortBy, sortOrder]);
+
+  // Fetch stats
+  const fetchStats = useCallback(async () => {
+    const res = await fetch("/api/measurements/stats");
+    setStats(await res.json());
+  }, []);
+
+  // Fetch stations
+  useEffect(() => {
+    fetch("/api/stations")
+      .then((r) => r.json())
+      .then(setStations);
+  }, []);
+
+  useEffect(() => {
+    fetchMeasurements();
+  }, [fetchMeasurements]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Search debounce
+  const [searchInput, setSearchInput] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Sort handler
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
   };
+
+  // Upload handler
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    if (!stations.length) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("stationId", stations[0].id);
+
+    const res = await fetch("/api/upload", { method: "POST", body: formData });
+    const result = await res.json();
+    setUploading(false);
+    setUploadOpen(false);
+
+    if (result.success) {
+      fetchMeasurements();
+      fetchStats();
+    }
+  };
+
+  // Delete handler
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/measurements/${id}`, { method: "DELETE" });
+    fetchMeasurements();
+    fetchStats();
+  };
+
+  // Edit handlers
+  const startEdit = (m: Measurement) => {
+    setEditingId(m.id);
+    setEditValues({ temperature: m.temperature, salinity: m.salinity, status: m.status });
+  };
+  const saveEdit = async () => {
+    if (!editingId) return;
+    await fetch(`/api/measurements/${editingId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(editValues),
+    });
+    setEditingId(null);
+    fetchMeasurements();
+    fetchStats();
+  };
+
+  const totalPages = Math.ceil(total / pageSize);
+  const seaAreas = [...new Set(stations.map((s) => s.seaArea))];
+
+  const statusLabels: Record<string, string> = {
+    Verified: t("dataManagement.status.verified"),
+    Pending: t("dataManagement.status.pending"),
+    Flagged: t("dataManagement.status.flagged"),
+  };
+
+  const statCards = stats
+    ? [
+      {
+        label: t("dataManagement.stats.totalRecords"),
+        value: stats.totalRecords.toLocaleString(),
+        icon: Database,
+        color: "text-sky-500",
+        bg: "bg-sky-50 dark:bg-sky-500/10",
+      },
+      {
+        label: t("dataManagement.stats.verified"),
+        value: `${stats.verifiedPercentage}%`,
+        icon: CheckCircle2,
+        color: "text-emerald-500",
+        bg: "bg-emerald-50 dark:bg-emerald-500/10",
+      },
+      {
+        label: t("dataManagement.stats.pending"),
+        value: stats.pendingCount.toLocaleString(),
+        icon: Clock,
+        color: "text-amber-500",
+        bg: "bg-amber-50 dark:bg-amber-500/10",
+      },
+      {
+        label: t("dataManagement.stats.flagged"),
+        value: stats.flaggedCount.toLocaleString(),
+        icon: AlertTriangle,
+        color: "text-rose-500",
+        bg: "bg-rose-50 dark:bg-rose-500/10",
+      },
+    ]
+    : [];
 
   return (
     <DashboardShell
+      contentClassName="p-6"
       header={
         <TopBar
           title={t("dataManagement.title")}
           right={
-            <>
-              <div className="relative hidden items-center md:flex">
-                <Search className="absolute left-3 h-4 w-4 text-slate-400" />
-                <Input
-                  className="h-9 w-60 border-slate-200 bg-slate-100 pl-9 text-[13px] text-slate-700 placeholder:text-slate-400 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200 dark:placeholder:text-slate-500"
-                  placeholder={t("common.searchDatasets")}
-                />
-              </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setUploadOpen(true)}
+                className="h-[38px] gap-2 rounded-lg bg-sky-500 px-4 text-[13px] font-semibold hover:bg-sky-600"
+              >
+                <Upload className="h-4 w-4" />
+                {t("dataManagement.topbar.upload")}
+              </Button>
               <LocaleToggle />
               <ThemeToggle />
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-9 w-9 bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200 dark:border-[#334155] dark:bg-[#1e293b] dark:text-[#f0f9ff] dark:hover:bg-[#334155]"
-              >
-                <Bell className="h-4 w-4" />
-              </Button>
-            </>
+            </div>
           }
         />
       }
     >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = statIcons[stat.icon as keyof typeof statIcons];
-          return (
-            <div
-              key={stat.key}
-              className="flex h-[100px] flex-col justify-between rounded-[10px] border border-slate-200 bg-white p-5 dark:border-[#334155] dark:bg-[#1e293b]"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="flex h-4 w-4 items-center justify-center"
-                  style={{ color: stat.iconColor }}
-                >
-                  {Icon ? <Icon className="h-4 w-4" /> : null}
-                </span>
-                <span className="text-[13px] font-medium text-slate-500 dark:text-slate-300">
-                  {t(stat.labelKey)}
-                </span>
-              </div>
-              <div className="flex items-end gap-1">
-                <span className="text-[28px] font-semibold text-[#0c4a6e] dark:text-[#f0f9ff]">
-                  {stat.value}
-                </span>
-                {stat.unit ? (
-                  <span className="pb-1 text-[14px] text-slate-400 dark:text-slate-400">
-                    {stat.unit}
-                  </span>
-                ) : null}
-              </div>
+      {/* Upload Modal */}
+      {uploadOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-[#1e293b]">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold">{t("dataManagement.topbar.upload")}</h3>
+              <button onClick={() => setUploadOpen(false)}>
+                <X className="h-5 w-5 text-slate-400" />
+              </button>
             </div>
-          );
-        })}
-      </section>
-
-      <section className="flex h-[120px] flex-col items-center justify-center gap-2 rounded-[10px] border-2 border-sky-500 bg-sky-50 text-center dark:border-[#38bdf8] dark:bg-[#1e293b]">
-        <UploadCloud className="h-9 w-9 text-sky-500" />
-        <p className="text-sm font-semibold text-[#0c4a6e] dark:text-[#f0f9ff]">
-          {t("dataManagement.dragDropTitle")}
-        </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {t("dataManagement.dragDropSubtitle")}
-        </p>
-      </section>
-
-      <section className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button className="h-[38px] gap-2 rounded-lg bg-sky-500 px-4 text-[13px] font-semibold hover:bg-sky-600">
-            <Upload className="h-4 w-4" />
-            {t("dataManagement.uploadCtdData")}
-          </Button>
-          <Select defaultValue="all">
-            <SelectTrigger className="h-[38px] w-44 rounded-lg border-slate-200 bg-white text-[13px] text-slate-700 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200">
-              <SlidersHorizontal className="mr-2 h-4 w-4 text-slate-500" />
-              <SelectValue placeholder={t("dataManagement.filters.allStations")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                {t("dataManagement.filters.allStations")}
-              </SelectItem>
-              <SelectItem value="argo">
-                {t("dataManagement.filters.argo")}
-              </SelectItem>
-              <SelectItem value="cruise">
-                {t("dataManagement.filters.cruise")}
-              </SelectItem>
-              <SelectItem value="mooring">
-                {t("dataManagement.filters.mooring")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Select defaultValue="north">
-            <SelectTrigger className="h-[38px] w-44 rounded-lg border-slate-200 bg-white text-[13px] text-slate-700 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200">
-              <MapPin className="mr-2 h-4 w-4 text-slate-500" />
-              <SelectValue placeholder={t("dataManagement.filters.allSeaAreas")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="north">
-                {t("dataManagement.filters.northPacific")}
-              </SelectItem>
-              <SelectItem value="south">
-                {t("dataManagement.filters.southPacific")}
-              </SelectItem>
-              <SelectItem value="atlantic">
-                {t("dataManagement.filters.atlantic")}
-              </SelectItem>
-              <SelectItem value="indian">
-                {t("dataManagement.filters.indianOcean")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Select defaultValue="30">
-            <SelectTrigger className="h-[38px] w-48 rounded-lg border-slate-200 bg-white text-[13px] text-slate-700 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200">
-              <CalendarDays className="mr-2 h-4 w-4 text-slate-500" />
-              <SelectValue placeholder={t("dataManagement.filters.dateRangeDefault")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">
-                {t("dataManagement.filters.last7Days")}
-              </SelectItem>
-              <SelectItem value="30">
-                {t("dataManagement.filters.last30Days")}
-              </SelectItem>
-              <SelectItem value="90">
-                {t("dataManagement.filters.last90Days")}
-              </SelectItem>
-              <SelectItem value="365">
-                {t("dataManagement.filters.lastYear")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Select defaultValue="1000">
-            <SelectTrigger className="h-[38px] w-40 rounded-lg border-slate-200 bg-white text-[13px] text-slate-700 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200">
-              <ArrowDownUp className="mr-2 h-4 w-4 text-slate-500" />
-              <SelectValue placeholder={t("dataManagement.filters.depthDefault")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="100">
-                {t("dataManagement.filters.depth0to100")}
-              </SelectItem>
-              <SelectItem value="500">
-                {t("dataManagement.filters.depth0to500")}
-              </SelectItem>
-              <SelectItem value="1000">
-                {t("dataManagement.filters.depth0to1000")}
-              </SelectItem>
-              <SelectItem value="2000">
-                {t("dataManagement.filters.depth0to2000")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+            <div
+              className="flex h-40 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 hover:border-sky-400 dark:border-slate-600"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleUpload(e.dataTransfer.files);
+              }}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".csv,.xlsx,.xls";
+                input.onchange = (e) => handleUpload((e.target as HTMLInputElement).files);
+                input.click();
+              }}
+            >
+              {uploading ? (
+                <div className="text-sm text-slate-500">{t("dataManagement.upload.processing")}</div>
+              ) : (
+                <>
+                  <Upload className="mb-2 h-8 w-8 text-slate-400" />
+                  <p className="text-sm text-slate-500">{t("dataManagement.upload.dragDrop")}</p>
+                  <p className="mt-1 text-xs text-slate-400">CSV, Excel (.xlsx)</p>
+                </>
+              )}
+            </div>
+          </div>
         </div>
-        <Button
-          variant="outline"
-          className="h-[38px] gap-2 rounded-lg border-slate-200 bg-white px-4 text-[13px] font-medium text-slate-700 hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-200 dark:hover:bg-[#334155]"
-        >
-          <Download className="h-4 w-4" />
-          {t("common.export")}
-        </Button>
+      )}
+
+      {/* Statistics Cards */}
+      <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statCards.map((card) => (
+          <div
+            key={card.label}
+            className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-[#334155] dark:bg-[#1e293b]"
+          >
+            <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", card.bg)}>
+              <card.icon className={cn("h-5 w-5", card.color)} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{card.value}</p>
+              <p className="text-xs text-slate-500">{card.label}</p>
+            </div>
+          </div>
+        ))}
       </section>
 
-      <section className="overflow-hidden rounded-[10px] border border-slate-200 bg-white dark:border-[#334155] dark:bg-[#1e293b]">
+      {/* Filters */}
+      <section className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder={t("dataManagement.search")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-9 pl-9 text-sm"
+          />
+        </div>
+        <Select value={stationFilter} onValueChange={(v) => { setStationFilter(v === "all" ? "" : v); setPage(1); }}>
+          <SelectTrigger className="h-9 w-[140px] text-xs">
+            <SelectValue placeholder={t("dataManagement.filters.station")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("dataManagement.filters.allStations")}</SelectItem>
+            {stations.map((s) => (
+              <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={seaAreaFilter} onValueChange={(v) => { setSeaAreaFilter(v === "all" ? "" : v); setPage(1); }}>
+          <SelectTrigger className="h-9 w-[160px] text-xs">
+            <SelectValue placeholder={t("dataManagement.filters.seaArea")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("dataManagement.filters.allAreas")}</SelectItem>
+            {seaAreas.map((a) => (
+              <SelectItem key={a} value={a}>{a}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}>
+          <SelectTrigger className="h-9 w-[130px] text-xs">
+            <SelectValue placeholder={t("dataManagement.filters.status")} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t("dataManagement.filters.allStatus")}</SelectItem>
+            <SelectItem value="Verified">{t("dataManagement.status.verified")}</SelectItem>
+            <SelectItem value="Pending">{t("dataManagement.status.pending")}</SelectItem>
+            <SelectItem value="Flagged">{t("dataManagement.status.flagged")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </section>
+
+      {/* Data Table */}
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-[#334155] dark:bg-[#1e293b]">
         <Table>
           <TableHeader>
-            <TableRow className="h-11 border-b border-slate-200 bg-slate-50 dark:border-[#334155] dark:bg-[#0f172a]">
-              <TableHead className="w-[120px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.station")}
-              </TableHead>
-              <TableHead className="w-[120px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.date")}
-              </TableHead>
-              <TableHead className="w-[100px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.depth")}
-              </TableHead>
-              <TableHead className="w-[100px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.temp")}
-              </TableHead>
-              <TableHead className="w-[120px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.salinity")}
-              </TableHead>
-              <TableHead className="w-[130px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.density")}
-              </TableHead>
-              <TableHead className="w-[100px] px-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {t("dataManagement.table.status")}
-              </TableHead>
-              <TableHead className="w-[80px] px-4 text-right text-xs font-semibold text-slate-500 dark:text-slate-400">
+            <TableRow className="border-b border-slate-100 dark:border-[#334155]">
+              {[
+                { key: "station", label: t("dataManagement.table.station") },
+                { key: "date", label: t("dataManagement.table.date") },
+                { key: "depth", label: t("dataManagement.table.depth") },
+                { key: "temperature", label: t("dataManagement.table.temperature") },
+                { key: "salinity", label: t("dataManagement.table.salinity") },
+                { key: "status", label: t("dataManagement.table.status") },
+              ].map((col) => (
+                <TableHead
+                  key={col.key}
+                  className="cursor-pointer px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600"
+                  onClick={() => handleSort(col.key)}
+                >
+                  {col.label}
+                  {sortBy === col.key && (
+                    <span className="ml-1">{sortOrder === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </TableHead>
+              ))}
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                 {t("dataManagement.table.actions")}
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {datasets.map((row) => (
-              <TableRow
-                key={`${row.station}-${row.date}`}
-                className="h-11 border-b border-slate-100 dark:border-[#1e293b]"
-              >
-                <TableCell className="px-4 text-[13px] font-semibold text-sky-500">
-                  {row.station}
-                </TableCell>
-                <TableCell className="px-4 text-[13px] text-slate-700 dark:text-slate-200">
-                  {row.date}
-                </TableCell>
-                <TableCell className="px-4 text-[13px] text-slate-700 dark:text-slate-200">
-                  {row.depth.toFixed(1)}
-                </TableCell>
-                <TableCell className="px-4 text-[13px] text-slate-700 dark:text-slate-200">
-                  {row.temp.toFixed(2)}
-                </TableCell>
-                <TableCell className="px-4 text-[13px] text-slate-700 dark:text-slate-200">
-                  {row.salinity.toFixed(3)}
-                </TableCell>
-                <TableCell className="px-4 text-[13px] text-slate-700 dark:text-slate-200">
-                  {row.density.toFixed(2)}
-                </TableCell>
-                <TableCell className="px-4">
-                  <span
-                    className={cn(
-                      "inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-semibold",
-                      statusStyles[row.status]
-                    )}
-                  >
-                    {statusLabels[row.status]}
-                  </span>
-                </TableCell>
-                <TableCell className="px-4 text-right">
-                  <div className="flex items-center justify-end gap-2 text-slate-400 dark:text-slate-500">
-                    <Eye className="h-4 w-4" />
-                    <Pencil className="h-4 w-4" />
-                    <Trash2 className="h-4 w-4" />
-                  </div>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-sm text-slate-400">
+                  Loading...
                 </TableCell>
               </TableRow>
-            ))}
+            ) : measurements.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12 text-center text-sm text-slate-400">
+                  {t("dataManagement.table.noData")}
+                </TableCell>
+              </TableRow>
+            ) : (
+              measurements.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="h-11 border-b border-slate-100 dark:border-[#1e293b]"
+                >
+                  <TableCell className="px-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {row.station.name}
+                    <span className="ml-2 text-xs text-slate-400">{row.station.seaArea}</span>
+                  </TableCell>
+                  <TableCell className="px-4 text-sm text-slate-600 dark:text-slate-300">
+                    {new Date(row.date).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell className="px-4 text-sm text-slate-600 dark:text-slate-300">
+                    {row.depth}m
+                  </TableCell>
+                  <TableCell className="px-4 text-sm text-slate-600 dark:text-slate-300">
+                    {editingId === row.id ? (
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={editValues.temperature ?? ""}
+                        onChange={(e) => setEditValues({ ...editValues, temperature: parseFloat(e.target.value) })}
+                        className="h-7 w-20 text-xs"
+                      />
+                    ) : (
+                      `${row.temperature}℃`
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4 text-sm text-slate-600 dark:text-slate-300">
+                    {editingId === row.id ? (
+                      <Input
+                        type="number"
+                        step="0.001"
+                        value={editValues.salinity ?? ""}
+                        onChange={(e) => setEditValues({ ...editValues, salinity: parseFloat(e.target.value) })}
+                        className="h-7 w-20 text-xs"
+                      />
+                    ) : (
+                      `${row.salinity} PSU`
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4">
+                    {editingId === row.id ? (
+                      <Select
+                        value={editValues.status}
+                        onValueChange={(v) => setEditValues({ ...editValues, status: v })}
+                      >
+                        <SelectTrigger className="h-7 w-24 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Verified">Verified</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Flagged">Flagged</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span
+                        className={cn(
+                          "inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-semibold",
+                          statusStyles[row.status]
+                        )}
+                      >
+                        {statusLabels[row.status] || row.status}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-4">
+                    <div className="flex items-center gap-1">
+                      {editingId === row.id ? (
+                        <>
+                          <button onClick={saveEdit} className="rounded p-1 hover:bg-emerald-50 dark:hover:bg-emerald-500/10">
+                            <Check className="h-4 w-4 text-emerald-500" />
+                          </button>
+                          <button onClick={() => setEditingId(null)} className="rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <X className="h-4 w-4 text-slate-400" />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => startEdit(row)} className="rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-700">
+                            <Pencil className="h-3.5 w-3.5 text-slate-400" />
+                          </button>
+                          <button onClick={() => handleDelete(row.id)} className="rounded p-1 hover:bg-rose-50 dark:hover:bg-rose-500/10">
+                            <Trash2 className="h-3.5 w-3.5 text-slate-400 hover:text-rose-500" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
-        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-400 dark:border-[#334155] dark:bg-[#0f172a] dark:text-slate-500">
-          <span>
-            {t("dataManagement.pagination.showingRecords", {
-              range: "1-5",
-              total: "2,847",
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 dark:border-[#334155]">
+          <p className="text-xs text-slate-400">
+            {t("dataManagement.pagination.showing")} {(page - 1) * pageSize + 1}-
+            {Math.min(page * pageSize, total)} {t("dataManagement.pagination.of")} {total}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+              const pageNum = start + i;
+              if (pageNum > totalPages) return null;
+              return (
+                <Button
+                  key={pageNum}
+                  variant={pageNum === page ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setPage(pageNum)}
+                  className={cn("h-8 w-8 p-0 text-xs", pageNum === page && "bg-sky-500 hover:bg-sky-600")}
+                >
+                  {pageNum}
+                </Button>
+              );
             })}
-          </span>
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  label={t("common.previous")}
-                  ariaLabel={t("common.previousAria")}
-                  className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-300 dark:hover:bg-[#334155]"
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  isActive
-                  className="h-8 w-8 rounded-md border border-sky-500 bg-sky-500 text-white hover:bg-sky-500"
-                >
-                  1
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-300 dark:hover:bg-[#334155]"
-                >
-                  2
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationLink
-                  href="#"
-                  className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-300 dark:hover:bg-[#334155]"
-                >
-                  3
-                </PaginationLink>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  label={t("common.next")}
-                  ariaLabel={t("common.nextAria")}
-                  className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1e293b] dark:text-slate-300 dark:hover:bg-[#334155]"
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </section>
     </DashboardShell>

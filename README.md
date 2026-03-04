@@ -1,4 +1,5 @@
-# 深渊之眼（abyss-eye）· CTD 门户（Next.js）
+# Abyss Eye - 深渊之眼 CTD 数据管理系统
+![GitHub](https://img.shields.io/github/license/shy20051208-spec/The-Eye-of-the-Deep-Sea) 门户（Next.js）
 
 面向“深渊探测温盐深（CTD/TSG）数据”的管理、分析与可视化门户（PC 优先）。  
 当前版本以 **Mock 数据** 为主（便于独立演示），后续可对接 Spring Boot + MySQL（8081）与算法结果接口。
