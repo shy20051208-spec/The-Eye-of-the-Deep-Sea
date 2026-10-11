@@ -45,3 +45,10 @@ next-env.d.ts
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
+
+# local temp and generated artifacts
+.workbuddy/
+audit-report.html
+tmp-*.ts
+tmp_*.json
+tmp_*.txt
