@@ -27,9 +27,11 @@ export const messages = {
     },
     nav: {
       dataManagement: "Data Management",
+      dataCleaning: "Data Cleaning",
       visualization: "Visualization",
       analysis: "Intelligent Analysis",
       reportExport: "Report Export",
+      profile: "Profile",
       systemSettings: "System Settings",
       appName: "DeepSea Eye",
       appSubtitle: "CTD Analysis",
@@ -393,9 +395,11 @@ export const messages = {
     },
     nav: {
       dataManagement: "数据管理",
+      dataCleaning: "数据清洗",
       visualization: "可视化",
       analysis: "智能分析",
       reportExport: "报告导出",
+      profile: "个人资料",
       systemSettings: "系统设置",
       appName: "DeepSea Eye",
       appSubtitle: "CTD 分析",

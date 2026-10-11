@@ -16,12 +16,12 @@ export function DashboardShell({
   contentClassName,
 }: DashboardShellProps) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-slate-100">
-      <div className="flex">
+    <div className="h-screen overflow-hidden bg-slate-50 text-slate-900 dark:bg-[#0f172a] dark:text-slate-100">
+      <div className="flex h-full">
         <Sidebar />
-        <div className="flex min-h-screen flex-1 flex-col">
+        <div className="flex h-full flex-1 flex-col">
           {header}
-          <main className={cn("flex-1 space-y-6 p-8", contentClassName)}>
+          <main className={cn("flex-1 min-h-0 overflow-y-auto space-y-3 p-4 md:p-5", contentClassName)}>
             {children}
           </main>
         </div>

@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -14,11 +15,11 @@ const stations = [
 ];
 
 const users = [
-    { name: "Dr. Zhang Wei", email: "zhang.wei@ouc.edu.cn", initials: "ZW", role: "Admin", department: "Marine Science", status: "Active" },
-    { name: "Prof. Li Ming", email: "li.ming@ouc.edu.cn", initials: "LM", role: "Researcher", department: "Oceanography", status: "Active" },
-    { name: "Wang Jun", email: "wang.jun@sjtu.edu.cn", initials: "WJ", role: "Analyst", department: "Data Science", status: "Active" },
-    { name: "Chen Yue", email: "chen.yue@pku.edu.cn", initials: "CY", role: "Student", department: "Physics", status: "Pending" },
-    { name: "Sun Hao", email: "sun.hao@xmu.edu.cn", initials: "SH", role: "Viewer", department: "Geography", status: "Inactive" },
+    { name: "Dr. Zhang Wei", email: "zhang.wei@ouc.edu.cn", initials: "ZW", role: "Admin", department: "Marine Science", status: "Active", password: "Abyss@123" },
+    { name: "Prof. Li Ming", email: "li.ming@ouc.edu.cn", initials: "LM", role: "Researcher", department: "Oceanography", status: "Active", password: "Abyss@123" },
+    { name: "Wang Jun", email: "wang.jun@sjtu.edu.cn", initials: "WJ", role: "Analyst", department: "Data Science", status: "Active", password: "Abyss@123" },
+    { name: "Chen Yue", email: "chen.yue@pku.edu.cn", initials: "CY", role: "Student", department: "Physics", status: "Pending", password: "Abyss@123" },
+    { name: "Sun Hao", email: "sun.hao@xmu.edu.cn", initials: "SH", role: "Viewer", department: "Geography", status: "Inactive", password: "Abyss@123" },
 ];
 
 // Simulate realistic CTD temperature profile with thermocline
@@ -113,6 +114,7 @@ async function main() {
         const user = await prisma.user.create({
             data: {
                 ...u,
+                password: bcrypt.hashSync(u.password ?? "Abyss@123", 10),
                 lastActiveAt: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)),
             },
         });

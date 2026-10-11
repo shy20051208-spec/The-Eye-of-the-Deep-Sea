@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { TopBar } from "@/components/layout/topbar";
 import { useI18n } from "@/components/i18n-provider";
+
+interface UserCookie {
+  id?: string | number;
+  name?: string;
+  email?: string;
+  role?: string;
+}
 import { LocaleToggle } from "@/components/locale-toggle";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -24,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { normalizeUserRole } from "@/lib/auth";
 import {
   Upload,
   Search,
@@ -37,6 +45,10 @@ import {
   AlertTriangle,
   X,
   Check,
+  Activity,
+  BarChart3,
+  Users,
+  Sparkles,
 } from "lucide-react";
 
 interface Station {
@@ -82,11 +94,34 @@ const statusStyles: Record<string, string> = {
 
 export default function DataManagementPage() {
   const { t } = useI18n();
+  const [currentUser] = useState<UserCookie | null>(() => {
+    if (typeof document === "undefined") {
+      return null;
+    }
+
+    const match = document.cookie.match(/(?:^|;\s*)user=([^;]+)/);
+    if (!match) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(decodeURIComponent(match[1])) as UserCookie;
+    } catch {
+      return null;
+    }
+  });
 
   // Data state
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [recentActivities, setRecentActivities] = useState<Array<{
+    id: string;
+    action: string;
+    detail: string;
+    createdAt: string;
+    user?: { name?: string; initials?: string | null } | null;
+  }>>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -141,11 +176,20 @@ export default function DataManagementPage() {
   }, []);
 
   useEffect(() => {
-    fetchMeasurements();
+    fetch("/api/audit-logs?page=1&pageSize=5")
+      .then((r) => r.json())
+      .then((data) => setRecentActivities(data.data || []))
+      .catch(() => setRecentActivities([]));
+  }, []);
+
+  useEffect(() => {
+    // delay call to avoid synchronous setState inside effect
+    void Promise.resolve().then(fetchMeasurements);
   }, [fetchMeasurements]);
 
   useEffect(() => {
-    fetchStats();
+    // delay call to avoid synchronous setState inside effect
+    void Promise.resolve().then(fetchStats);
   }, [fetchStats]);
 
   // Search debounce
@@ -256,14 +300,62 @@ export default function DataManagementPage() {
     ]
     : [];
 
+  const overviewCards = [
+    {
+      label: "Active stations",
+      value: `${stations.length || 0}`,
+      detail: "Live CTD coverage",
+      icon: Activity,
+      color: "text-sky-600",
+      bg: "bg-sky-50 dark:bg-sky-500/10",
+    },
+    {
+      label: "Quality pass rate",
+      value: stats ? `${stats.verifiedPercentage}%` : "--",
+      detail: "Data integrity status",
+      icon: CheckCircle2,
+      color: "text-emerald-600",
+      bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    },
+    {
+      label: "Analyses queued",
+      value: stats ? `${Math.max(3, stats.pendingCount)}` : "3",
+      detail: "Scheduled processing",
+      icon: Sparkles,
+      color: "text-violet-600",
+      bg: "bg-violet-50 dark:bg-violet-500/10",
+    },
+    {
+      label: "User activity",
+      value: currentUser?.name ? "Online" : "Guest",
+      detail: currentUser?.email || "Awaiting sign-in",
+      icon: Users,
+      color: "text-amber-600",
+      bg: "bg-amber-50 dark:bg-amber-500/10",
+    },
+  ];
+
   return (
     <DashboardShell
-      contentClassName="p-6"
+      contentClassName="p-4 md:p-5"
       header={
         <TopBar
           title={t("dataManagement.title")}
           right={
             <div className="flex items-center gap-3">
+              <div className="hidden items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs text-sky-700 md:flex dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-500 text-[10px] font-bold text-white">
+                  {(currentUser?.name || currentUser?.email || "U").charAt(0).toUpperCase()}
+                </span>
+                <span className="max-w-[180px] truncate">
+                  {currentUser?.name || currentUser?.email?.split("@")[0] || "欢迎使用"}
+                </span>
+                {currentUser?.role ? (
+                  <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/20 dark:text-sky-200">
+                    {normalizeUserRole(currentUser.role)}
+                  </span>
+                ) : null}
+              </div>
               <Button
                 onClick={() => setUploadOpen(true)}
                 className="h-[38px] gap-2 rounded-lg bg-sky-500 px-4 text-[13px] font-semibold hover:bg-sky-600"
@@ -317,12 +409,102 @@ export default function DataManagementPage() {
         </div>
       )}
 
+      <section className="mb-3 grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(300px,420px)] lg:items-stretch">
+        <div className="min-h-[270px] rounded-2xl border border-sky-300/40 bg-gradient-to-br from-sky-600 via-sky-500 to-cyan-500 p-4 text-white shadow-[0_18px_38px_rgba(14,116,144,0.22)] dark:border-sky-500/40 md:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-sky-100">Operations overview</p>
+              <h2 className="mt-1 text-[clamp(1.8rem,2vw,2.6rem)] font-bold leading-tight">Deep-sea monitoring dashboard</h2>
+            </div>
+            <div className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-sky-50">
+              {normalizeUserRole(currentUser?.role) || "Operator"}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {overviewCards.map((card) => (
+              <div key={card.label} className="rounded-xl bg-white/10 p-3 backdrop-blur-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-sky-100">{card.label}</span>
+                  <card.icon className="h-4 w-4 text-white/80" />
+                </div>
+                <div className="text-xl font-bold">{card.value}</div>
+                <div className="mt-1 text-[11px] text-sky-100/80">{card.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex h-full max-h-[420px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm dark:border-[#334155] dark:bg-[#1e293b]/90">
+          <div className="mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-sky-500" />
+            <h3 className="text-base font-semibold text-slate-800 dark:text-slate-100">Quick actions</h3>
+          </div>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-[#334155] dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <span>Upload datasets</span>
+              <Upload className="h-4 w-4 text-sky-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.href = "/analysis"}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-[#334155] dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <span>Run intelligent analysis</span>
+              <Sparkles className="h-4 w-4 text-violet-500" />
+            </button>
+            <button
+              type="button"
+              onClick={() => window.location.href = "/report-export"}
+              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-[#334155] dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <span>Export reports</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            </button>
+          </div>
+
+          <div className="mt-4 flex min-h-0 flex-1 flex-col border-t border-slate-200 pt-4 dark:border-[#334155]">
+            <div className="mb-3 flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Recent activity</h4>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Live</span>
+            </div>
+            <div
+              className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+              style={{ scrollbarWidth: "thin", msOverflowStyle: "auto" }}
+            >
+              {recentActivities.length === 0 ? (
+                <p className="text-xs text-slate-500">No recent events</p>
+              ) : (
+                recentActivities.map((activity) => (
+                  <div key={activity.id} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm dark:border-[#334155] dark:bg-slate-800/60">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{activity.action}</p>
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(activity.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-300">{activity.detail}</p>
+                    <p className="mt-1 text-[10px] text-slate-400">
+                      {activity.user?.name || "System"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Statistics Cards */}
-      <section className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-[#334155] dark:bg-[#1e293b]"
+            className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-[#334155] dark:bg-[#1e293b]"
           >
             <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", card.bg)}>
               <card.icon className={cn("h-5 w-5", card.color)} />

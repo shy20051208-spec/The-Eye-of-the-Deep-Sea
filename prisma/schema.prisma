@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url = "file:./dev.db"
 }
 
 model Station {
@@ -15,6 +15,8 @@ model Station {
   seaArea      String
   type         String           @default("Cruise")
   measurements CTDMeasurement[]
+  uploads      Upload[]
+  cleaningLogs CleaningLog[]
   createdAt    DateTime         @default(now())
 }
 
@@ -35,12 +37,16 @@ model User {
   id           String     @id @default(cuid())
   name         String
   email        String     @unique
+  password     String?
+  phone        String?    @unique
   initials     String
   role         String
   department   String
   status       String     @default("Active")
   lastActiveAt DateTime   @default(now())
   auditLogs    AuditLog[]
+  uploads      Upload[]
+  cleaningLogs CleaningLog[]
   createdAt    DateTime   @default(now())
 }
 
@@ -51,4 +57,43 @@ model AuditLog {
   action    String
   detail    String?
   createdAt DateTime @default(now())
+}
+
+model CleaningLog {
+  id        String   @id @default(cuid())
+  stationId String
+  station   Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  summary   String
+  details   String?
+  createdAt DateTime @default(now())
+}
+
+model SmsCode {
+  id         String   @id @default(cuid())
+  phone      String
+  code       String
+  purpose    String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+// 上传/导入记录，用于追踪原始文件及溯源信息
+model Upload {
+  id             String   @id @default(cuid())
+  uploaderId     String
+  uploader       User     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  stationId      String?
+  station        Station? @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  filename       String
+  mime           String
+  size           Int
+  path           String
+  originalFormat String
+  totalRows      Int?
+  successCount   Int?
+  errors         String?  // 记录错误摘要（JSON 字符串）。SQLite 不支持 Json 原生类型，因此保留为 String
+  createdAt      DateTime @default(now())
 }

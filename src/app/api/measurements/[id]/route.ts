@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { createAuditLog, getUserIdFromRequest } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function PUT(
@@ -19,6 +20,10 @@ export async function PUT(
         },
         include: { station: true },
     });
+
+    const actorId = getUserIdFromRequest(req);
+    await createAuditLog(actorId, "measurement_updated", `Updated CTD measurement at ${measurement.station.name}: temperature=${measurement.temperature}, salinity=${measurement.salinity}, status=${measurement.status}`);
+
     return NextResponse.json(measurement);
 }
 
@@ -27,6 +32,15 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     const { id } = await params;
+    const measurement = await prisma.cTDMeasurement.findUnique({
+        where: { id },
+        include: { station: true },
+    });
+
     await prisma.cTDMeasurement.delete({ where: { id } });
+
+    const actorId = getUserIdFromRequest(_req);
+    await createAuditLog(actorId, "measurement_deleted", `Deleted CTD measurement from ${measurement?.station?.name ?? "station"} at depth ${measurement?.depth ?? "-"}m`);
+
     return NextResponse.json({ success: true });
 }

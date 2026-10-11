@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Check,
   Eye,
@@ -15,6 +15,7 @@ import {
   Printer,
   Waves,
 } from "lucide-react";
+import { buildExportSummary } from "@/lib/report-export";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { TopBar } from "@/components/layout/topbar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -45,23 +46,28 @@ const defaultToggles = [
   { key: "reportExport.exportSettings.toggles.tableOfContents", checked: false },
 ];
 
-const section2Rows = [
-  {
-    labelKey: "reportExport.previewSections.table.row1.label",
-    value: "18.4℃",
-    noteKey: "reportExport.previewSections.table.row1.note",
-  },
-  {
-    labelKey: "reportExport.previewSections.table.row2.label",
-    value: "34.86 PSU",
-    noteKey: "reportExport.previewSections.table.row2.note",
-  },
-  {
-    labelKey: "reportExport.previewSections.table.row3.label",
-    value: "1025.7 kg/m³",
-    noteKey: "reportExport.previewSections.table.row3.note",
-  },
-];
+interface StationOption {
+  id: string;
+  name: string;
+  seaArea: string;
+}
+
+interface AnalysisData {
+  thermocline: {
+    topDepth: number;
+    bottomDepth: number;
+    centerDepth: number;
+    maxGradient: number;
+    layers: Array<{ name: string; depthRange: [number, number]; tempRange: [number, number] }>;
+  } | null;
+  statistics: {
+    temperature: { min: number; max: number; mean: number; std: number };
+    salinity: { min: number; max: number; mean: number };
+    density: { min: number; max: number; mean: number };
+  };
+  profile: Array<{ depth: number; temperature: number; salinity: number; density: number }>;
+  pointCount: number;
+}
 
 export default function ReportExportPage() {
   const { t } = useI18n();
@@ -71,6 +77,9 @@ export default function ReportExportPage() {
   const [format, setFormat] = useState<"pdf" | "word">("pdf");
   const [template, setTemplate] = useState("standard");
   const [station, setStation] = useState("st001");
+  const [stations, setStations] = useState<StationOption[]>([]);
+  const [analysisData, setAnalysisData] = useState<AnalysisData | null>(null);
+  const [loadingData, setLoadingData] = useState(false);
   const [dateRange, setDateRange] = useState(t("reportExport.exportSettings.dateRangeValue"));
   const [author, setAuthor] = useState(t("reportExport.exportSettings.authorValue"));
   const [institution, setInstitution] = useState(t("reportExport.exportSettings.institutionValue"));
@@ -78,6 +87,60 @@ export default function ReportExportPage() {
   const [togglesState, setTogglesState] = useState(defaultToggles);
   const [generating, setGenerating] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stations")
+      .then((res) => res.json())
+      .then((data: StationOption[]) => {
+        setStations(data);
+        if (data.length > 0) {
+          setStation((prev) => prev || data[0].id);
+        }
+      })
+      .catch(() => setStations([]));
+  }, []);
+
+  const fetchAnalysisData = useCallback(async (stationId: string) => {
+    setLoadingData(true);
+    try {
+      const res = await fetch("/api/analysis/thermocline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stationId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "无法加载报告数据");
+      }
+      setAnalysisData(data);
+    } catch (error) {
+      console.error(error);
+      setAnalysisData(null);
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!station) return;
+    void fetchAnalysisData(station);
+  }, [station, fetchAnalysisData]);
+
+  const stationName = stations.find((item) => item.id === station)?.name ?? "ST-001";
+  const exportSummary = buildExportSummary({
+    stationName,
+    template,
+    analysisData,
+    institution,
+    dateRange,
+    author,
+  });
+
+  const metricsRows = exportSummary.metricsRows.map((row) => ({
+    labelKey: `reportExport.previewSections.table.row${row.label === "温度" ? 1 : row.label === "盐度" ? 2 : 3}.label`,
+    value: row.value,
+    noteKey: `reportExport.previewSections.table.row${row.label === "温度" ? 1 : row.label === "盐度" ? 2 : 3}.note`,
+  }));
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -98,12 +161,8 @@ export default function ReportExportPage() {
 
   // 获取预览区域的HTML内容，构建完整文档
   const buildDocumentHtml = () => {
-    const stationLabel = station === "st001"
-      ? t("reportExport.exportSettings.stationValue")
-      : t("reportExport.exportSettings.stationOption2");
-    const templateLabel = template === "standard"
-      ? t("reportExport.exportSettings.standardTemplate")
-      : t("reportExport.exportSettings.cruiseSummary");
+    const stationLabel = exportSummary.stationLabel || t("reportExport.exportSettings.stationValue");
+    const templateLabel = exportSummary.templateLabel;
 
     return `<!DOCTYPE html>
 <html lang="zh">
@@ -130,7 +189,7 @@ export default function ReportExportPage() {
 <p class="org">${institution || t("reportExport.reportOrg")}</p>
 
 <h2>1. ${t("reportExport.previewSections.section1Title")}</h2>
-<p>${t("reportExport.previewSections.section1Body")}</p>
+<p>测站 ${stationLabel} 的 CTD 数据已完成质量控制与热盐深分析，当前采样点数为 ${exportSummary.totalPoints}。监测结果显示：温度区间 ${exportSummary.temperatureSummary}，盐度区间 ${exportSummary.salinitySummary}，密度区间 ${exportSummary.densitySummary}，温跃层位置为 ${exportSummary.thermoclineText}。</p>
 
 <h2>2. ${t("reportExport.previewSections.section2Title")}</h2>
 <table>
@@ -139,7 +198,7 @@ export default function ReportExportPage() {
     <th>${t("reportExport.previewSections.table.header.value")}</th>
     <th>${t("reportExport.previewSections.table.header.notes")}</th>
   </tr>
-  ${section2Rows
+  ${metricsRows
         .map(
           (r) =>
             `<tr><td>${t(r.labelKey)}</td><td>${r.value}</td><td>${t(r.noteKey)}</td></tr>`
@@ -154,7 +213,7 @@ export default function ReportExportPage() {
 <p>${t("reportExport.previewSections.section4Body")}</p>
 
 <div class="meta">
-  <p>模板：${templateLabel} | 测站：${stationLabel} | 日期范围：${dateRange} | 作者：${author} | 机构：${institution}</p>
+  <p>${exportSummary.metaText}</p>
 </div>
 </body>
 </html>`;
@@ -319,7 +378,7 @@ export default function ReportExportPage() {
                     <span>{t("reportExport.previewSections.table.header.value")}</span>
                     <span>{t("reportExport.previewSections.table.header.notes")}</span>
                   </div>
-                  {section2Rows.map((row) => (
+                  {metricsRows.map((row) => (
                     <div
                       key={row.labelKey}
                       className="grid grid-cols-[1.2fr_0.8fr_0.8fr] border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500"
@@ -468,19 +527,24 @@ export default function ReportExportPage() {
                 <p className="text-[12px] font-semibold tracking-[0.5px] text-[#0c4a6e]">
                   {t("reportExport.exportSettings.station")}
                 </p>
-                <Select value={station} onValueChange={setStation}>
-                  <SelectTrigger className="h-9 w-full rounded-md border-slate-200 bg-white text-[12px] text-slate-600 dark:border-[#334155] dark:bg-[#1e293b]">
-                    <SelectValue placeholder={t("reportExport.exportSettings.stationPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="st001">
-                      {t("reportExport.exportSettings.stationValue")}
-                    </SelectItem>
-                    <SelectItem value="st002">
-                      {t("reportExport.exportSettings.stationOption2")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                {loadingData ? (
+                  <div className="h-9 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500 dark:border-[#334155] dark:bg-[#1e293b]">
+                    正在加载测站数据…
+                  </div>
+                ) : (
+                  <Select value={station} onValueChange={setStation}>
+                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 bg-white text-[12px] text-slate-600 dark:border-[#334155] dark:bg-[#1e293b]">
+                      <SelectValue placeholder={t("reportExport.exportSettings.stationPlaceholder")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stations.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-2">

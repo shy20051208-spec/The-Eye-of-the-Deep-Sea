@@ -1,0 +1,7 @@
+[
+  { "id": "m1", "date": "2024-01-01T00:00:00Z", "depth": 0, "temperature": 20.0, "salinity": 35.0 },
+  { "id": "m2", "date": "2024-01-01T00:00:10Z", "depth": 1, "temperature": 19.9, "salinity": 35.0 },
+  { "id": "m3", "date": "2024-01-01T00:00:20Z", "depth": 2, "temperature": 19.8, "salinity": 35.0 },
+  { "id": "m4", "date": "2024-01-01T00:00:30Z", "depth": 3, "temperature": 19.7, "salinity": 35.0 },
+  { "id": "m5", "date": "2024-01-01T00:00:40Z", "depth": 4, "temperature": 19.6, "salinity": 35.0 }
+]
